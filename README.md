@@ -1,6 +1,7 @@
 # shadow_pvz
 
-A new Flutter project.
+## website
+[https://shadowplusing.cn/XJY.GAME.PVZ.pvz_flutter/](https://shadowplusing.cn/XJY.GAME.PVZ.pvz_flutter/)
 
 ## Check Script
 ```
