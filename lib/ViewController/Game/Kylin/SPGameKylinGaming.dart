@@ -60,7 +60,6 @@ class SPGameKylinGaming extends PositionComponent
             _kylin.updateState(KylinState.running);
 
             // Adjust max height based on obstacle
-            final obstacleHeight = other.size.y;
             final obstacleTop = other.position.y;
             final kylinBottom = _kylin.position.y + _kylin.size.y;
             final maxHeightIncrease = obstacleTop - kylinBottom;

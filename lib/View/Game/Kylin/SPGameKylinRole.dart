@@ -28,7 +28,6 @@ class SPGameKylinRole extends PositionComponent with CollisionCallbacks {
   KylinState _currentState = KylinState.running;
 
   // In SPGameKylinRole
-  bool _isInitialized = false;
 
   SPGameKylinRole(Vector2 position) : super(position: position, size: Vector2(80, 40)); // Constructor with position parameter
 
@@ -67,7 +66,6 @@ class SPGameKylinRole extends PositionComponent with CollisionCallbacks {
 
     // Initially add the run animation component
     add(_runAnimationComponent);
-    _isInitialized = true;
   }
 
   void updateState(KylinState newState) {

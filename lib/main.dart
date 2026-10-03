@@ -1,32 +1,20 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:shadow_pvz/Util/GlobalVar/GlobalVar.dart';
+import 'package:flutter/scheduler.dart';
+import 'frequency/game_support.dart';
+import 'lane_defense.dart';
 
-import 'Localization/import/SPLocalization.dart';
-import 'Router/Router.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  Locale locale = PlatformDispatcher.instance.locale;
-  SPLocalization().locale = locale.toString();
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      // // FIXME: test
-      // initialRoute: GlobalRoutes.homePage.name,
-
-      initialRoute: GlobalRoutes.splashPage.name,
-      onGenerateRoute: globalGenerateRoute,
-      theme: ThemeData.dark(),
-      debugShowCheckedModeBanner: GlobalVar.isDebugMode,
-    );
-  }
+void main()=>runApp(const MyApp());
+class MyApp extends StatelessWidget{const MyApp({super.key});@override Widget build(BuildContext context)=>MaterialApp(debugShowCheckedModeBanner:false,title:'电路守线 · 频率游戏',theme:FrequencyTheme.dark(),home:const DefensePage());}
+class DefensePage extends StatefulWidget{const DefensePage({super.key});@override State<DefensePage> createState()=>_DefenseState();}
+class _DefenseState extends State<DefensePage> with SingleTickerProviderStateMixin {
+  LaneDefense game=LaneDefense();late final Ticker ticker;Duration last=Duration.zero;double accumulator=0,lastSave=0;
+  bool started=false,paused=false,audio=false,shovel=false;int selected=1;String session=newSession(),message='先布置能源，再建立每一行的火力。';
+  static const names=['能源站','脉冲塔','护盾墙'];static const icons=[Icons.wb_sunny_outlined,Icons.bolt,Icons.shield_outlined];
+  @override void initState(){super.initState();final j=readMap('pvz.save');if(j!=null&&j.isNotEmpty){final restored=LaneDefense.fromJson(objectMap(j['game']));if(restored==null){invalidSave();}if(restored!=null&&restored.result==null){game=restored;session=(j['session'] is String) ? j['session'] as String : newSession();message='发现未完成守线任务，可以继续。';}}ticker=createTicker(frame);}
+  @override void dispose(){ticker.dispose();super.dispose();}
+  void persist(){saveMap('pvz.save',{'game':game.toJson(),'session':session,'finished':game.result!=null});}
+  void reset([int? level,bool active=true]){ticker.stop();last=Duration.zero;setState((){game=LaneDefense(level??game.level);session=newSession();started=active;shovel=false;accumulator=0;lastSave=0;message='先放能源站，收集能量后布置每行火力。';});persist();if(active)ticker.start();}
+  void frame(Duration now){final dt=(now-last).inMicroseconds/1000000;last=now;if(!started||paused||game.result!=null)return;accumulator+=dt.clamp(0,0.25);while(accumulator>=1/60){game.tick(1/60);accumulator-=1/60;}if(game.time-lastSave>=2){lastSave=game.time;persist();}if(game.result!=null){ticker.stop();persist();recordResult('pvz',session,game.result!,'任务 ${game.level+1} · ${game.kills} 目标 · ${game.time.toStringAsFixed(0)} 秒');sound(audio,game.result=='守线成功'?1:2);}setState((){});}
+  void plant(int cell){if(!started||paused||game.result!=null)return;final row=cell~/6,col=cell%6;final okay=shovel?game.remove(row,col):game.plant(row,col,selected);setState(()=>message=okay?(shovel?'已铲除，不退还能量。':'${names[selected]}已布置。'):col==5?'最右列是来袭区域，不能布置。':shovel?'这里没有可铲除的设施。':game.energy<LaneDefense.costs[selected]?'能量不足，先收集能源。':game.cooldowns[selected]>game.time?'卡片正在冷却，请稍等。':'该格已被设施占用。');sound(audio,okay?0:2);persist();}
+  @override Widget build(BuildContext context)=>GameFrame(title:'电路守线',subtitle:'05 / 原创战术工坊 · 三行五波',gameId:'pvz',playing:started&&game.result==null,onExit:persist,onRestart:()=>reset(),onRules:()=>rulesDialog(context,'这是一款小型原创守线游戏，使用独立规则与场景，不移植完整 PVZ。\n\n选择设施，再点空格布置；最右列为来袭区。能源站 50 能量，每 8 秒产出 25；脉冲塔 75，每秒射击造成 20 伤害；护盾墙 50，生命 300。卡片冷却 5 秒。天空每 10 秒也补充 25 能量，所有掉落 10 秒后过期，点击“收集能量”回收。铲除不退款。\n\n普通目标生命 100，护甲目标 200，快速目标 60。敌人接触设施后停止并造成每秒伤害。每行有一次自动清线保护，用尽后再越线即失败。\n\n共 5 波，全部生成且全部目标被清除才胜利。三个任务逐步加入护甲和快目标，波次排期固定。暂停和后台不推进规则时间。可随时保存、重试和切换任务。\n\nTab/方向键/Enter 可操作棋格，声音默认关闭。'),onPause:(v){paused=v;accumulator=0;ticker.stop();last=Duration.zero;if(!v&&started&&game.result==null)ticker.start();persist();},onSound:(v)=>audio=v,child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[sectionTitle('保持每一行畅通','能源、火力与屏障，做好下一波准备。'),Wrap(spacing:24,runSpacing:16,children:[metric('能量','${game.energy}'),metric('波次',game.wave==0?'准备中':'${game.wave}/5'),metric('已清除','${game.kills}'),metric('有效时间','${game.time.toStringAsFixed(0)} 秒')]),const SizedBox(height:24),panel(Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[if(!started)Wrap(spacing:8,runSpacing:8,children:[...List.generate(3,(i)=>ChoiceChip(label:Text(['任务一 · 普通','任务二 · 护甲','任务三 · 快速'][i]),selected:game.level==i,onSelected:(v)=>reset(i,false))),FilledButton.icon(onPressed:(){setState(()=>started=true);last=Duration.zero;ticker.start();},icon:const Icon(Icons.play_arrow),label:Text(game.time==0?'开始守线':'继续任务'))])else Wrap(spacing:12,runSpacing:12,children:[...List.generate(3,(i){final cool=(game.cooldowns[i]-game.time).clamp(0,5);return ChoiceChip(avatar:Icon(icons[i],size:20),label:Text('${names[i]} ${LaneDefense.costs[i]}${cool>0?' · ${cool.toStringAsFixed(1)}s':''}'),selected:!shovel&&selected==i,onSelected:game.result!=null?null:(v)=>setState((){selected=i;shovel=false;}));}),ChoiceChip(avatar:const Icon(Icons.delete_outline,size:20),label:const Text('铲除'),selected:shovel,onSelected:game.result!=null?null:(v)=>setState(()=>shovel=v)),FilledButton.tonalIcon(onPressed:game.drops.isEmpty||game.result!=null?null:(){final value=game.collect();setState(()=>message='已收集 $value 能量。');sound(audio);persist();},icon:const Icon(Icons.wb_sunny_outlined),label:Text('收集能量 ${game.drops.length*25}'))]),const SizedBox(height:16),statusText(game.result??message),const SizedBox(height:8),if(game.result==null)Text(game.wave<5?'下一波 ${(game.nextWave-game.time).clamp(0,12).toStringAsFixed(0)} 秒 · 当前 ${game.enemies.length} 个目标':'最后一波 · 当前 ${game.enemies.length} 个目标，待到达 ${game.scheduled.length} 个',style:const TextStyle(color:FrequencyPalette.muted,fontSize:14)),const SizedBox(height:16),LayoutBuilder(builder:(context,viewport){final width=viewport.maxWidth<284?284.0:viewport.maxWidth;return SingleChildScrollView(scrollDirection:Axis.horizontal,child:SizedBox(width:width,child:LayoutBuilder(builder:(context,c){final cell=c.maxWidth/6,height=cell*3;return SizedBox(height:height,child:ClipRRect(borderRadius:BorderRadius.circular(8),child:Stack(children:[Positioned.fill(child:Image.asset('assets/images/frequency-defense.webp',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const ColoredBox(color:FrequencyPalette.background))),KeyboardBoard(columns:6,count:18,gap:4,cell:(i,node){final row=i~/6,col=i%6,units=game.units.where((u)=>u.row==row&&u.col==col);final unit=units.isEmpty?null:units.first;return Semantics(label:'第 ${row+1} 行第 ${col+1} 格，${unit==null?'空格':names[unit.type]}',child:OutlinedButton(focusNode:node,onPressed:started&&game.result==null?()=>plant(i):null,style:OutlinedButton.styleFrom(backgroundColor:FrequencyPalette.background.withValues(alpha:0.6),padding:EdgeInsets.zero,side:BorderSide(color:col==5?FrequencyPalette.amber:FrequencyPalette.border),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(4))),child:unit==null?(col==5?const Icon(Icons.arrow_back,color:FrequencyPalette.amber):const SizedBox.shrink()):FittedBox(fit:BoxFit.scaleDown,child:Column(mainAxisSize:MainAxisSize.min,mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icons[unit.type],color:FrequencyPalette.accent,size:28),Text('${unit.hp.ceil()}',style:const TextStyle(color:FrequencyPalette.text,fontSize:14,height:1))]))));}),...game.enemies.map((e)=>Positioned(left:(e.x/6*c.maxWidth-14).clamp(0,c.maxWidth-28).toDouble(),top:e.row*cell+cell*0.18,child:IgnorePointer(child:Semantics(label:'第 ${e.row+1} 行${['普通','护甲','快速'][e.type]}目标，生命 ${e.hp.ceil()}',child:SizedBox(width:36,height:cell*0.78,child:FittedBox(fit:BoxFit.scaleDown,child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(e.type==1?Icons.security:e.type==2?Icons.flash_on:Icons.memory,color:FrequencyPalette.error,size:cell<64?20:28),Text('${e.hp.ceil()}',style:const TextStyle(fontSize:14,height:1,color:FrequencyPalette.error))]))))))),...game.bullets.map((b)=>Positioned(left:(b.x/6*c.maxWidth).clamp(0,c.maxWidth-8).toDouble(),top:b.row*cell+cell*0.48,child:const IgnorePointer(child:Icon(Icons.circle,size:7,color:FrequencyPalette.amber))))])));})));}),const SizedBox(height:16),Wrap(spacing:16,runSpacing:8,children:List.generate(3,(r)=>Chip(avatar:Icon(game.safety[r]?Icons.shield_outlined:Icons.warning_amber,color:game.safety[r]?FrequencyPalette.success:FrequencyPalette.error),label:Text('第 ${r+1} 行：${game.safety[r]?'保护可用':'保护已用'}')))),if(game.result!=null)...[const SizedBox(height:16),FilledButton.icon(onPressed:()=>reset(game.result=='守线成功'&&game.level<2?game.level+1:game.level),icon:const Icon(Icons.restart_alt),label:Text(game.result=='守线成功'&&game.level<2?'下一任务':'重试任务'))]])),const SizedBox(height:16),TextButton(onPressed:()=>reset(game.level,false),child:const Text('选择任务')),const SizedBox(height:16),const Text('建议：先建立能源，再尽早补齐每一行火力。能量会过期，记得收集。',style:TextStyle(color:FrequencyPalette.muted))]));
 }

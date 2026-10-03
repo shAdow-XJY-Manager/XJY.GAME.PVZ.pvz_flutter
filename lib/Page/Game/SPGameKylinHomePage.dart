@@ -22,7 +22,7 @@ class _SPGameKylinHomePageState extends State<SPGameKylinHomePage> {
     super.initState();
     _subscriptions.add(
         eventBus.on<SPEvent>().listen((event) {
-          if (event.eventCode == SPEventCode.backToMapHome) {
+          if (mounted && event.eventCode == SPEventCode.backToMapHome) {
             Navigator.pop(context);
           }
         })

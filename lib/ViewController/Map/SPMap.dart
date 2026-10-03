@@ -20,7 +20,6 @@ class SPMap extends FlameGame with PanDetector, TapDetector {
 
   late final PositionComponent _mapComponent;
   List<Component> buildingList = [];
-  late final CameraComponent _magnifyingGlass;
   static const zoom = 3.0;
   static const radius = 130.0;
 

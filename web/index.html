@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,77 +18,22 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="原创三行五波守线游戏：收集能源，布置火力，完成任务。">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="shadow_pvz">
+  <meta name="apple-mobile-web-app-title" content="电路守线">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>shadow_pvz</title>
+  <title>电路守线 · 频率游戏</title>
   <link rel="manifest" href="manifest.json">
 
-  <div class="shadow-container">
-    <span class="shadow-letter">S</span>
-    <span class="shadow-letter">H</span>
-    <span class="shadow-letter">A</span>
-    <span class="shadow-letter">D</span>
-    <span class="shadow-letter">O</span>
-    <span class="shadow-letter">W</span>
-  </div>
-  <style>
-    body {
-      background-color: black; /* 设置页面背景为黑色 */
-      display: flex;
-      justify-content: center; /* 水平居中 */
-      align-items: center; /* 垂直居中 */
-      height: 100vh;
-      margin: 0;
-    }
-
-    .shadow-container {
-      display: inline-block;
-      font-size: 4em;
-      font-family: 'Arial Black', sans-serif;
-      color: white; /* 设置文字颜色为白色 */
-      animation: writeShadow 2s infinite; /* 设置动画循环播放 */
-    }
-
-    .shadow-letter {
-      display: inline-block;
-      position: relative;
-      opacity: 0;
-      animation: writeLetter 2s forwards;
-    }
-
-    .shadow-letter:nth-child(1) { animation-delay: 0.2s; }
-    .shadow-letter:nth-child(2) { animation-delay: 0.4s; }
-    .shadow-letter:nth-child(3) { animation-delay: 0.6s; }
-    .shadow-letter:nth-child(4) { animation-delay: 0.8s; }
-    .shadow-letter:nth-child(5) { animation-delay: 1s; }
-    .shadow-letter:nth-child(6) { animation-delay: 1.2s; }
-
-    @keyframes writeLetter {
-      0% { opacity: 0; }
-      100% { opacity: 1; }
-    }
-
-    @keyframes writeShadow {
-      0% {
-        text-shadow: 0 0 10px #fff; /* 初始阴影 */
-      }
-      50% {
-        text-shadow: 0 0 20px #fff, 0 0 30px #fff, 0 0 40px #fff; /* 闪烁效果 */
-      }
-      100% {
-        text-shadow: 0 0 10px #fff; /* 最终阴影 */
-      }
-    }
-  </style>
+  <style>body { margin: 0; background: #111315; }</style>
+  <script src="game_bridge.js"></script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
