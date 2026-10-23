@@ -24,6 +24,7 @@ class DefensePage extends StatefulWidget {
 
 class _DefenseState extends State<DefensePage>
     with SingleTickerProviderStateMixin {
+  final gameFrameKey = GlobalKey<GameFrameState>();
   LaneDefense game = LaneDefense();
   late final Ticker ticker;
   Duration last = Duration.zero;
@@ -137,14 +138,61 @@ class _DefenseState extends State<DefensePage>
     persist();
   }
 
+  Widget primaryAction() => FilledButton.icon(
+    onPressed: game.result != null
+        ? () => requestReset(
+            game.result == '守线成功' && game.level < 2
+                ? game.level + 1
+                : game.level,
+          )
+        : started
+        ? () => gameFrameKey.currentState?.togglePause()
+        : () {
+            setState(() => started = true);
+            last = Duration.zero;
+            ticker.start();
+          },
+    icon: Icon(
+      game.result != null
+          ? Icons.restart_alt
+          : started
+          ? Icons.pause
+          : Icons.play_arrow,
+    ),
+    label: Text(
+      game.result != null
+          ? (game.result == '守线成功' && game.level < 2 ? '下一任务' : '重试任务')
+          : started
+          ? '暂停守线'
+          : game.time == 0
+          ? '开始守线'
+          : '继续任务',
+    ),
+  );
+
+  Future<bool> requestReset([int? level, bool active = true]) async {
+    if (gameFrameKey.currentState != null &&
+        !await gameFrameKey.currentState!.allowReset(
+          hasProgress:
+              game.result == null &&
+              (started || game.time > 0 || game.units.isNotEmpty),
+          action: active ? '重新开始' : '选择任务',
+        ))
+      return false;
+    if (!mounted) return false;
+    reset(level, active);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) => GameFrame(
+    key: gameFrameKey,
     title: '电路守线',
     subtitle: '05 / 原创战术工坊 · 三行五波',
     gameId: 'pvz',
     playing: started && game.result == null,
     onExit: persist,
-    onRestart: () => reset(),
+    onRestart: () => requestReset(),
     onRules: () => rulesDialog(
       context,
       '这是一款小型原创守线游戏，使用独立规则与场景，不移植完整 PVZ。\n\n选择设施，再点空格布置；最右列为来袭区。能源站 50 能量，每 8 秒产出 25；脉冲塔 75，每秒射击造成 20 伤害；护盾墙 50，生命 300。卡片冷却 5 秒。天空每 10 秒也补充 25 能量，所有掉落 10 秒后过期，点击“收集能量”回收。铲除不退款。\n\n普通目标生命 100，护甲目标 200，快速目标 60。敌人接触设施后停止并造成每秒伤害。每行有一次自动清线保护，用尽后再越线即失败。\n\n共 5 波，全部生成且全部目标被清除才胜利。三个任务逐步加入护甲和快目标，波次排期固定。暂停和后台不推进规则时间。可随时保存、重试和切换任务。\n\nTab/方向键/Enter 可操作棋格，声音默认关闭。',
@@ -393,18 +441,12 @@ class _DefenseState extends State<DefensePage>
                     (i) => ChoiceChip(
                       label: Text(['任务一 · 普通', '任务二 · 护甲', '任务三 · 快速'][i]),
                       selected: game.level == i,
-                      onSelected: (v) => reset(i, false),
+                      onSelected: (v) {
+                        if (v && i != game.level) requestReset(i, false);
+                      },
                     ),
                   ),
-                  FilledButton.icon(
-                    onPressed: () {
-                      setState(() => started = true);
-                      last = Duration.zero;
-                      ticker.start();
-                    },
-                    icon: const Icon(Icons.play_arrow),
-                    label: Text(game.time == 0 ? '开始守线' : '继续任务'),
-                  ),
+                  desktopGameAction(primaryAction()),
                 ],
               )
             else
@@ -465,21 +507,13 @@ class _DefenseState extends State<DefensePage>
               ),
             if (game.result != null) ...[
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => reset(
-                  game.result == '守线成功' && game.level < 2
-                      ? game.level + 1
-                      : game.level,
-                ),
-                icon: const Icon(Icons.restart_alt),
-                label: Text(
-                  game.result == '守线成功' && game.level < 2 ? '下一任务' : '重试任务',
-                ),
-              ),
+              desktopGameAction(primaryAction()),
             ],
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () => reset(game.level, false),
+              onPressed: () {
+                if (started) requestReset(game.level, false);
+              },
               child: const Text('选择任务'),
             ),
             const SizedBox(height: 8),
@@ -490,6 +524,7 @@ class _DefenseState extends State<DefensePage>
           ],
         ),
       ),
+      primaryAction: primaryAction(),
       boardAspect: 2,
       boardChrome: 110,
       minimumBoardWidth: 480,
